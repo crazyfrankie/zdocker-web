@@ -1,13 +1,15 @@
 package service
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/bytedance/sonic"
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/crazyfrankie/zdocker/container"
@@ -78,68 +80,119 @@ type SystemInfo struct {
 
 // GetContainerList 获取容器列表
 func GetContainerList() ([]Container, error) {
-	var containers []Container
-
 	dirUrl := fmt.Sprintf(container.DefaultLocation, "")
 	dirUrl = dirUrl[:len(dirUrl)-1]
 
-	// 检查目录是否存在
-	if _, err := os.Stat(dirUrl); os.IsNotExist(err) {
-		return containers, nil
-	}
-
-	containerFiles, err := os.ReadDir(dirUrl)
+	files, err := os.ReadDir(dirUrl)
 	if err != nil {
-		return nil, fmt.Errorf("读取容器目录失败: %v", err)
+		return nil, err
 	}
 
-	for _, containerFile := range containerFiles {
-		if containerFile.IsDir() {
-			tmpContainer, err := getContainerInfoByName(containerFile.Name())
-			if err != nil {
-				continue // 跳过读取失败的容器
-			}
-			containers = append(containers, tmpContainer)
+	containers := make([]Container, 0, len(files))
+	for _, f := range files {
+		info, err := getContainerInfo(f)
+		if err != nil {
+			continue
 		}
+
+		// Check if container process is still running and update status if needed
+		if info.Status == container.RUNNING && info.PID != "" {
+			if !isProcessRunning(info.PID) {
+				if err := updateContainerStatusToExit(info.Name); err != nil {
+				} else {
+					info.Status = container.EXIT
+					info.PID = ""
+				}
+			}
+		}
+
+		containers = append(containers, Container{
+			ID:          info.ID,
+			Name:        info.Name,
+			Command:     info.Command,
+			Status:      info.Status,
+			CreatedTime: info.CreateTime,
+			Pid:         info.PID,
+			Volume:      info.Volume,
+		})
 	}
 
 	return containers, nil
 }
 
 // getContainerInfoByName 根据容器名称获取容器信息
-func getContainerInfoByName(containerName string) (Container, error) {
-	configFileDir := fmt.Sprintf(container.DefaultLocation, containerName)
-	configFileDir = configFileDir + container.ConfigName
-
-	content, err := os.ReadFile(configFileDir)
+func getContainerInfo(file os.DirEntry) (*container.ContainerInfo, error) {
+	var info container.ContainerInfo
+	fileName := file.Name()
+	cfgDir := fmt.Sprintf(container.DefaultLocation, fileName)
+	cfgName := cfgDir + container.ConfigName
+	data, err := os.ReadFile(cfgName)
 	if err != nil {
-		return Container{}, fmt.Errorf("读取容器配置文件失败: %v", err)
+		return nil, err
+	}
+	err = sonic.Unmarshal(data, &info)
+	if err != nil {
+		return nil, err
 	}
 
-	var containerInfo container.ContainerInfo
-	if err := json.Unmarshal(content, &containerInfo); err != nil {
-		return Container{}, fmt.Errorf("解析容器配置失败: %v", err)
+	return &info, nil
+}
+
+// isProcessRunning checks if a process with the given PID is still running
+func isProcessRunning(pidStr string) bool {
+	if pidStr == "" {
+		return false
 	}
 
-	// 检查容器状态
-	status := "stopped"
-	if containerInfo.PID != "" {
-		// 检查进程是否还在运行
-		if _, err := os.Stat(fmt.Sprintf("/proc/%s", containerInfo.PID)); err == nil {
-			status = "running"
+	pid, err := strconv.Atoi(pidStr)
+	if err != nil {
+		return false
+	}
+
+	// Send signal 0 to check if process exists without affecting it
+	if err := syscall.Kill(pid, 0); err != nil {
+		// ESRCH means "No such process"
+		if errors.Is(err, syscall.ESRCH) {
+			return false
 		}
+		// Other errors might mean the process exists, but we don't have permission
+		// In this case, we assume the process is running
+		return true
+	}
+	return true
+}
+
+// updateContainerStatusToExit updates container status to EXIT and clears PID
+func updateContainerStatusToExit(containerName string) error {
+	dirUrl := fmt.Sprintf(container.DefaultLocation, containerName)
+	cfgFile := dirUrl + container.ConfigName
+
+	// Read current container info
+	content, err := os.ReadFile(cfgFile)
+	if err != nil {
+		return fmt.Errorf("read container config error: %v", err)
 	}
 
-	return Container{
-		ID:          containerInfo.ID,
-		Name:        containerInfo.Name,
-		Command:     containerInfo.Command,
-		Status:      status,
-		CreatedTime: containerInfo.CreateTime,
-		Pid:         containerInfo.PID,
-		Volume:      containerInfo.Volume,
-		PortMapping: strings.Join(containerInfo.PortMapping, ","),
-	}, nil
+	var info container.ContainerInfo
+	if err := sonic.Unmarshal(content, &info); err != nil {
+		return fmt.Errorf("unmarshal container info error: %v", err)
+	}
+
+	// Update status and clear PID
+	info.Status = container.EXIT
+	info.PID = ""
+
+	// Write back to file
+	newContent, err := sonic.Marshal(info)
+	if err != nil {
+		return fmt.Errorf("marshal container info error: %v", err)
+	}
+
+	if err := os.WriteFile(cfgFile, newContent, 0622); err != nil {
+		return fmt.Errorf("write container config error: %v", err)
+	}
+
+	return nil
 }
 
 // GetContainerById 根据ID获取容器信息
@@ -242,8 +295,8 @@ func StartContainer(containerId string) error {
 }
 
 // StopContainer 停止容器
-func StopContainer(containerId string) error {
-	cmd := exec.Command("zdocker", "stop", containerId)
+func StopContainer(containerName string) error {
+	cmd := exec.Command("zdocker", "stop", containerName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("停止容器失败: %s, %v", string(output), err)
@@ -252,8 +305,8 @@ func StopContainer(containerId string) error {
 }
 
 // RemoveContainer 删除容器
-func RemoveContainer(containerId string) error {
-	cmd := exec.Command("zdocker", "rm", containerId)
+func RemoveContainer(containerName string) error {
+	cmd := exec.Command("zdocker", "rm", containerName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("删除容器失败: %s, %v", string(output), err)
@@ -262,8 +315,8 @@ func RemoveContainer(containerId string) error {
 }
 
 // GetContainerLogs 获取容器日志
-func GetContainerLogs(containerId string) (string, error) {
-	cmd := exec.Command("zdocker", "logs", containerId)
+func GetContainerLogs(containerName string) (string, error) {
+	cmd := exec.Command("zdocker", "logs", containerName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("获取容器日志失败: %s, %v", string(output), err)

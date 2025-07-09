@@ -52,18 +52,18 @@ export const startContainer = (id: string) => {
 }
 
 // 停止容器
-export const stopContainer = (id: string) => {
-  return api.post(`/containers/${id}/stop`)
+export const stopContainer = (name: string) => {
+  return api.post(`/containers/stop/${name}`)
 }
 
 // 删除容器
-export const removeContainer = (id: string) => {
-  return api.delete(`/containers/${id}`)
+export const removeContainer = (name: string) => {
+  return api.delete(`/containers/${name}`)
 }
 
 // 获取容器日志
-export const getContainerLogs = (id: string) => {
-  return api.get(`/containers/${id}/logs`)
+export const getContainerLogs = (name: string) => {
+  return api.get(`/containers/logs/${name}`)
 }
 
 // 在容器中执行命令

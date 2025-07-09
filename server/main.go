@@ -58,11 +58,11 @@ func setupRoutes(r *gin.Engine) {
 		{
 			containers.GET("", controller.ListContainers)
 			containers.POST("", controller.CreateContainer)
+			containers.GET("/logs/:name", controller.GetContainerLogs)
 			containers.GET("/:id", controller.GetContainer)
 			containers.POST("/:id/start", controller.StartContainer)
-			containers.POST("/:id/stop", controller.StopContainer)
-			containers.DELETE("/:id", controller.RemoveContainer)
-			containers.GET("/:id/logs", controller.GetContainerLogs)
+			containers.POST("/stop/:name", controller.StopContainer)
+			containers.DELETE("/:name", controller.RemoveContainer)
 			containers.POST("/:id/exec", controller.ExecContainer)
 		}
 

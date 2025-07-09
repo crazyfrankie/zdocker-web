@@ -2,18 +2,18 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { 
-  getContainer, 
-  getContainerLogs, 
+import {
+  getContainer,
+  getContainerLogs,
   execContainer,
   startContainer,
   stopContainer,
-  type Container 
+  type Container
 } from '@/api/containers'
-import { 
-  VideoPlay, 
-  VideoPause, 
-  Refresh, 
+import {
+  VideoPlay,
+  VideoPause,
+  Refresh,
   DocumentCopy,
   Monitor,
   Setting
@@ -21,7 +21,7 @@ import {
 
 const route = useRoute()
 const containerId = route.params.id as string
-
+const containerName = route.params.name as string
 const loading = ref(true)
 const container = ref<Container | null>(null)
 const logs = ref('')
@@ -54,7 +54,7 @@ const loadContainerDetails = async () => {
 const loadLogs = async () => {
   try {
     logsLoading.value = true
-    const response = await getContainerLogs(containerId)
+    const response = await getContainerLogs(containerName)
     logs.value = response.data || '暂无日志'
   } catch (error) {
     console.error('获取容器日志失败:', error)
@@ -76,7 +76,7 @@ const handleStart = async () => {
 
 const handleStop = async () => {
   try {
-    await stopContainer(containerId)
+    await stopContainer(containerName)
     ElMessage.success('容器停止成功')
     loadContainerDetails()
   } catch (error) {
@@ -89,7 +89,7 @@ const executeCommand = async () => {
     ElMessage.warning('请输入要执行的命令')
     return
   }
-  
+
   try {
     execLoading.value = true
     const response = await execContainer(containerId, {
@@ -218,9 +218,9 @@ const formatTime = (time: string) => {
           <template #header>
             <div class="logs-header">
               <span>容器日志</span>
-              <el-button 
-                size="small" 
-                :icon="Refresh" 
+              <el-button
+                size="small"
+                :icon="Refresh"
                 @click="loadLogs"
                 :loading="logsLoading"
               >
@@ -249,7 +249,7 @@ const formatTime = (time: string) => {
                 :disabled="execLoading"
               >
                 <template #append>
-                  <el-button 
+                  <el-button
                     @click="executeCommand"
                     :loading="execLoading"
                   >
@@ -396,22 +396,22 @@ const formatTime = (time: string) => {
     flex-direction: column;
     gap: 16px;
   }
-  
+
   .header-actions {
     width: 100%;
     justify-content: flex-start;
   }
-  
+
   .info-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .info-item {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
   }
-  
+
   .value {
     text-align: left;
     margin-left: 0;

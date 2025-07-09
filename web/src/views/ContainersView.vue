@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  getContainers, 
-  startContainer, 
-  stopContainer, 
+import {
+  getContainers,
+  startContainer,
+  stopContainer,
   removeContainer,
   createContainer,
   type Container,
   type CreateContainerRequest
 } from '@/api/containers'
-import { 
-  Plus, 
-  Refresh, 
-  VideoPlay, 
-  VideoPause, 
+import {
+  Plus,
+  Refresh,
+  VideoPlay,
+  VideoPause,
   Delete,
   View,
   Setting
@@ -69,7 +69,7 @@ const handleStart = async (container: Container) => {
 
 const handleStop = async (container: Container) => {
   try {
-    await stopContainer(container.id)
+    await stopContainer(container.name)
     ElMessage.success(`容器 ${container.name || container.id} 停止成功`)
     loadContainers()
   } catch (error) {
@@ -80,7 +80,7 @@ const handleStop = async (container: Container) => {
 const handleRemove = async (container: Container) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除容器 ${container.name || container.id} 吗？`,
+      `确定要删除容器 ${container.name} 吗？`,
       '删除确认',
       {
         confirmButtonText: '确定',
@@ -88,8 +88,8 @@ const handleRemove = async (container: Container) => {
         type: 'warning',
       }
     )
-    
-    await removeContainer(container.id)
+
+    await removeContainer(container.name)
     ElMessage.success('容器删除成功')
     loadContainers()
   } catch (error) {
@@ -148,7 +148,7 @@ const resetForm = () => {
 
 const addEnvironment = () => {
   if (!envInput.value.trim()) return
-  
+
   const [key, value] = envInput.value.split('=')
   if (key && value) {
     createForm.value.environment![key.trim()] = value.trim()
@@ -164,11 +164,11 @@ const removeEnvironment = (key: string) => {
 
 const addPortMapping = () => {
   if (!portInput.value.trim()) return
-  
+
   if (!createForm.value.port_mapping) {
     createForm.value.port_mapping = []
   }
-  
+
   createForm.value.port_mapping.push(portInput.value.trim())
   portInput.value = ''
 }
@@ -183,7 +183,7 @@ const handleCreate = async () => {
       ElMessage.warning('请填写镜像名称和命令')
       return
     }
-    
+
     await createContainer(createForm.value)
     ElMessage.success('容器创建成功')
     showCreateDialog.value = false
@@ -202,14 +202,14 @@ const handleCreate = async () => {
         <p class="subtitle">管理和监控你的容器</p>
       </div>
       <div class="header-actions">
-        <el-button 
-          type="primary" 
+        <el-button
+          type="primary"
           :icon="Plus"
           @click="showCreateForm"
         >
           创建容器
         </el-button>
-        <el-button 
+        <el-button
           :icon="Refresh"
           @click="loadContainers"
         >
@@ -219,8 +219,8 @@ const handleCreate = async () => {
     </div>
 
     <el-card class="containers-card">
-      <el-table 
-        :data="containers" 
+      <el-table
+        :data="containers"
         v-loading="loading"
         style="width: 100%"
         empty-text="暂无容器"
@@ -232,9 +232,9 @@ const handleCreate = async () => {
             </span>
           </template>
         </el-table-column>
-        
+
         <el-table-column prop="image" label="镜像" min-width="120" />
-        
+
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)" size="small">
@@ -242,21 +242,21 @@ const handleCreate = async () => {
             </el-tag>
           </template>
         </el-table-column>
-        
+
         <el-table-column prop="command" label="命令" min-width="150" show-overflow-tooltip />
-        
+
         <el-table-column prop="port_mapping" label="端口映射" width="120">
           <template #default="{ row }">
             <span>{{ row.port_mapping || '-' }}</span>
           </template>
         </el-table-column>
-        
+
         <el-table-column prop="created_time" label="创建时间" width="160">
           <template #default="{ row }">
             <span>{{ formatTime(row.created_time) }}</span>
           </template>
         </el-table-column>
-        
+
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
@@ -269,7 +269,7 @@ const handleCreate = async () => {
               >
                 启动
               </el-button>
-              
+
               <el-button
                 v-if="row.status === 'running'"
                 type="warning"
@@ -279,7 +279,7 @@ const handleCreate = async () => {
               >
                 停止
               </el-button>
-              
+
               <el-button
                 type="info"
                 size="small"
@@ -288,7 +288,7 @@ const handleCreate = async () => {
               >
                 详情
               </el-button>
-              
+
               <el-button
                 type="danger"
                 size="small"
@@ -312,64 +312,64 @@ const handleCreate = async () => {
     >
       <el-form :model="createForm" label-width="100px">
         <el-form-item label="镜像名称" required>
-          <el-input 
-            v-model="createForm.image" 
+          <el-input
+            v-model="createForm.image"
             placeholder="例如: ubuntu:latest"
           />
         </el-form-item>
-        
+
         <el-form-item label="执行命令" required>
-          <el-input 
-            v-model="createForm.command" 
+          <el-input
+            v-model="createForm.command"
             placeholder="例如: /bin/bash"
           />
         </el-form-item>
-        
+
         <el-form-item label="容器名称">
-          <el-input 
-            v-model="createForm.name" 
+          <el-input
+            v-model="createForm.name"
             placeholder="可选，不填写将自动生成"
           />
         </el-form-item>
-        
+
         <el-form-item label="运行选项">
           <el-checkbox v-model="createForm.detach">后台运行 (-d)</el-checkbox>
           <el-checkbox v-model="createForm.tty">分配终端 (-t)</el-checkbox>
         </el-form-item>
-        
+
         <el-form-item label="数据卷">
-          <el-input 
-            v-model="createForm.volume" 
+          <el-input
+            v-model="createForm.volume"
             placeholder="例如: /host/path:/container/path"
           />
         </el-form-item>
-        
+
         <el-form-item label="内存限制">
-          <el-input 
-            v-model="createForm.memory" 
+          <el-input
+            v-model="createForm.memory"
             placeholder="例如: 512m, 1g"
           />
         </el-form-item>
-        
+
         <el-form-item label="CPU限制">
-          <el-input 
-            v-model="createForm.cpu_share" 
+          <el-input
+            v-model="createForm.cpu_share"
             placeholder="CPU份额，例如: 512"
           />
         </el-form-item>
-        
+
         <el-form-item label="网络">
-          <el-input 
-            v-model="createForm.network" 
+          <el-input
+            v-model="createForm.network"
             placeholder="网络名称，例如: bridge"
           />
         </el-form-item>
-        
+
         <el-form-item label="环境变量">
           <div class="env-section">
             <div class="env-input">
-              <el-input 
-                v-model="envInput" 
+              <el-input
+                v-model="envInput"
                 placeholder="KEY=VALUE"
                 @keyup.enter="addEnvironment"
               />
@@ -388,12 +388,12 @@ const handleCreate = async () => {
             </div>
           </div>
         </el-form-item>
-        
+
         <el-form-item label="端口映射">
           <div class="port-section">
             <div class="port-input">
-              <el-input 
-                v-model="portInput" 
+              <el-input
+                v-model="portInput"
                 placeholder="8080:80"
                 @keyup.enter="addPortMapping"
               />
@@ -413,7 +413,7 @@ const handleCreate = async () => {
           </div>
         </el-form-item>
       </el-form>
-      
+
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="showCreateDialog = false">取消</el-button>
@@ -491,12 +491,12 @@ const handleCreate = async () => {
     flex-direction: column;
     gap: 16px;
   }
-  
+
   .header-actions {
     width: 100%;
     justify-content: flex-start;
   }
-  
+
   .action-buttons {
     flex-direction: column;
   }

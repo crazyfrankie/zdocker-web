@@ -96,15 +96,15 @@ func StartContainer(c *gin.Context) {
 
 // StopContainer 停止容器
 func StopContainer(c *gin.Context) {
-	containerId := c.Param("id")
-	if containerId == "" {
+	containerName := c.Param("name")
+	if containerName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "容器ID不能为空",
 		})
 		return
 	}
 
-	err := service.StopContainer(containerId)
+	err := service.StopContainer(containerName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "停止容器失败: " + err.Error(),
@@ -119,15 +119,15 @@ func StopContainer(c *gin.Context) {
 
 // RemoveContainer 删除容器
 func RemoveContainer(c *gin.Context) {
-	containerId := c.Param("id")
-	if containerId == "" {
+	containerName := c.Param("name")
+	if containerName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "容器ID不能为空",
 		})
 		return
 	}
 
-	err := service.RemoveContainer(containerId)
+	err := service.RemoveContainer(containerName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "删除容器失败: " + err.Error(),
@@ -142,15 +142,15 @@ func RemoveContainer(c *gin.Context) {
 
 // GetContainerLogs 获取容器日志
 func GetContainerLogs(c *gin.Context) {
-	containerId := c.Param("id")
-	if containerId == "" {
+	containerName := c.Param("name")
+	if containerName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "容器ID不能为空",
 		})
 		return
 	}
 
-	logs, err := service.GetContainerLogs(containerId)
+	logs, err := service.GetContainerLogs(containerName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "获取容器日志失败: " + err.Error(),
