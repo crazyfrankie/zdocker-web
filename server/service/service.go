@@ -3,7 +3,6 @@ package service
 import (
 	"errors"
 	"fmt"
-	"github.com/bytedance/sonic"
 	"os"
 	"os/exec"
 	"runtime"
@@ -11,6 +10,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/bytedance/sonic"
 
 	"github.com/crazyfrankie/zdocker/container"
 )
